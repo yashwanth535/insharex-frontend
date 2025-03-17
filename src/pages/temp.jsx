@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Upload, Download, FileUp, Users, Send, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const ws = new WebSocket('ws://localhost:3000');
+const wsurl= import.meta.env.VITE_WEBSOCKET_URL;
+const ws = new WebSocket(wsurl);
 
 const FileShare = () => {
   const [roomId, setRoomId] = useState('');

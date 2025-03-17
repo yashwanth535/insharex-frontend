@@ -7,41 +7,41 @@ import axios from 'axios';
 const UploadFile = ({ setShareCode }) => {
   const { isDark } = useTheme();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
-  const [pdf, setPdf] = useState(null);
+  const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const fileInputRef = useRef(null);
 
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setPdf(file);
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
       setUploadStatus('');
     } else {
-      setUploadStatus('Please select a valid PDF file');
-      setPdf(null);
+      setUploadStatus('Please select a valid file.');
+      setFile(null);
     }
   };
 
   const handleUpload = async () => {
-    if (!pdf) {
-      setUploadStatus('Please select a file first');
+    if (!file) {
+      setUploadStatus('Please select a file first.');
       return;
     }
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('pdf', pdf);
+    formData.append('file', file);
 
     try {
-      const response = await axios.post(`${API_URL}/api/upload-pdf`, formData, {
+      const response = await axios.post(`${API_URL}/api/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true,
       });
 
       setUploadStatus('File uploaded successfully!');
-      setPdf(null);
-      fileInputRef.current.value = null; // Clear file input
+      setFile(null);
+      fileInputRef.current.value = null;
     } catch (error) {
       setUploadStatus('Error uploading file. Please try again.');
       console.error('Upload error:', error);
@@ -55,7 +55,7 @@ const UploadFile = ({ setShareCode }) => {
       <motion.div className="flex items-center space-x-3">
         <Upload className={`h-7 w-7 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
         <h2 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Upload PDF File
+          Upload File
         </h2>
       </motion.div>
 
@@ -63,7 +63,6 @@ const UploadFile = ({ setShareCode }) => {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf"
           onChange={handleFileSelect}
           className={`w-full p-4 border-2 border-dashed rounded-xl transition-all ${
             isDark ? 'border-gray-700 bg-gray-900 text-white' : 'border-gray-300 bg-gray-50 text-gray-900'
@@ -73,18 +72,18 @@ const UploadFile = ({ setShareCode }) => {
       </motion.div>
 
       <AnimatePresence>
-        {pdf && (
-          <motion.p className="text-sm text-gray-600">Selected: {pdf.name}</motion.p>
+        {file && (
+          <motion.p className="text-sm text-gray-600">Selected: {file.name}</motion.p>
         )}
       </AnimatePresence>
 
       <motion.button
         onClick={handleUpload}
-        disabled={isUploading || !pdf}
+        disabled={isUploading || !file}
         className={`w-full py-4 px-6 rounded-xl text-white font-medium flex items-center justify-center space-x-2 transition-all
-          ${isUploading || !pdf ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
+          ${isUploading || !file ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
       >
-        <span>{isUploading ? 'Uploading...' : 'Upload PDF'}</span>
+        <span>{isUploading ? 'Uploading...' : 'Upload File'}</span>
         {!isUploading && <ArrowRight className="h-5 w-5" />}
       </motion.button>
 

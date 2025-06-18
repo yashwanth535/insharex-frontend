@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Download, FileUp, Users, Send, RefreshCw } from 'lucide-react';
+import { Upload, Download, FileUp, Users, Send, RefreshCw, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
+import Chat from '../components/Chat';
 
 const wsurl = import.meta.env.VITE_WEBSOCKET_URL;
 const ws = new WebSocket(wsurl);
@@ -20,6 +21,7 @@ const FileShare = () => {
   const [isReceiver, setIsReceiver] = useState(false);
   const [fileReady, setFileReady] = useState(false);
   const [isRoomCreator, setIsRoomCreator] = useState(false);
+  const [copiedRoomId, setCopiedRoomId] = useState(false);
   
   // Use refs for data that doesn't need to trigger re-renders
   const receivedChunksRef = useRef([]);
@@ -63,6 +65,7 @@ const FileShare = () => {
       return;
     }
     
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
     wsRef.current.send(JSON.stringify({ type: 'create-room' }));
     setIsReceiver(false);
     setIsRoomCreator(true);
@@ -309,6 +312,11 @@ const FileShare = () => {
             // Receiver has confirmed all chunks were received
             setStatus('File sent successfully!');
             break;
+            
+          case 'chat-message':
+            // Chat messages are handled by the Chat component
+            // Just pass them through to avoid conflicts
+            break;
         }
       } catch (error) {
         console.error('Error processing message:', error);
@@ -330,6 +338,38 @@ const FileShare = () => {
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     else if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     else return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  };
+
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopiedRoomId(true);
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedRoomId(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy room code:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = roomId;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      setCopiedRoomId(true);
+      setTimeout(() => {
+        setCopiedRoomId(false);
+      }, 2000);
+    }
+  };
+
+  const handleRoomCodeKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      joinRoom();
+    }
   };
 
   return (
@@ -384,8 +424,31 @@ const FileShare = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className={`mb-4 p-4 ${isDark ? 'bg-gray-700' : 'bg-white'} rounded-xl border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
               >
-                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-1 text-sm`}>Share this code with others:</p>
-                <div className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">{roomId}</div>
+                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-2 text-sm`}>Share this code with others:</p>
+                <div className="flex items-center space-x-3">
+                  <div className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                    {roomId}
+                  </div>
+                  <button
+                    onClick={copyRoomCode}
+                    className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
+                      copiedRoomId
+                        ? isDark 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-green-500 text-white'
+                        : isDark 
+                          ? 'bg-gray-600 text-gray-300 hover:bg-gray-500 hover:text-white' 
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800'
+                    }`}
+                    title={copiedRoomId ? "Copied!" : "Copy room code"}
+                  >
+                    {copiedRoomId ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </motion.div>
             )}
             
@@ -397,7 +460,8 @@ const FileShare = () => {
                     type="text" 
                     placeholder="Enter Room Code" 
                     value={roomId} 
-                    onChange={(e) => setRoomId(e.target.value)} 
+                    onChange={(e) => setRoomId(e.target.value)}
+                    onKeyPress={handleRoomCodeKeyPress}
                     className={`flex-1 border ${isDark ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                   <button 
@@ -407,152 +471,151 @@ const FileShare = () => {
                     Join
                   </button>
                 </div>
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Tip: Press Enter after typing the room code to join quickly
+                </p>
               </div>
             )}
           </motion.div>
         </div>
       )}
 
-      {peerConnected && !isReceiver && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`mt-6 p-6 ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'} rounded-xl shadow-sm border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <Upload className="h-6 w-6 text-blue-500 dark:text-blue-400" />
-            <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Send File</h3>
+      {peerConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" style={{ minHeight: '400px', maxHeight: '450px' }}>
+          {/* File Transfer Section - Takes 60% of the space (3/5) */}
+          <div className="lg:col-span-3">
+            <div className={`h-full ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-6`}>
+              {!isReceiver && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="h-full flex flex-col"
+                >
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Upload className="h-6 w-6 text-blue-500 dark:text-blue-400" />
+                    <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Send File</h3>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col">
+                    <div 
+                      onClick={() => fileInputRef.current.click()}
+                      className={`flex-1 border-2 border-dashed ${isDark ? 'border-blue-700' : 'border-blue-300'} rounded-xl p-6 cursor-pointer ${isDark ? 'hover:bg-blue-800/20' : 'hover:bg-blue-100'} transition duration-200 flex flex-col items-center justify-center`}
+                    >
+                      <FileUp className="h-10 w-10 text-blue-400 dark:text-blue-500 mb-2" />
+                      <p className="text-blue-600 dark:text-blue-400 font-medium">Select a file to share</p>
+                      <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>Click to browse your files</p>
+                      <input 
+                        ref={fileInputRef}
+                        type="file" 
+                        onChange={handleFileChange} 
+                        className="hidden" 
+                      />
+                    </div>
+                    
+                    {file && (
+                      <div className="mt-4 space-y-3">
+                        <div className={`p-3 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{file.name}</p>
+                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{formatFileSize(file.size)}</p>
+                        </div>
+                        
+                        {sendProgress > 0 && sendProgress < 100 && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Sending...</span>
+                              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{sendProgress}%</span>
+                            </div>
+                            <div className={`w-full bg-gray-200 rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                              <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${sendProgress}%` }}></div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <button 
+                          onClick={sendFile}
+                          disabled={sendProgress > 0 && sendProgress < 100}
+                          className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${
+                            sendProgress > 0 && sendProgress < 100
+                              ? isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          {sendProgress > 0 && sendProgress < 100 ? 'Sending...' : 'Send File'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {isReceiver && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="h-full flex flex-col"
+                >
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Download className="h-6 w-6 text-green-500 dark:text-green-400" />
+                    <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Receive File</h3>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col">
+                    {!fileReady ? (
+                      <div className={`flex-1 border-2 border-dashed ${isDark ? 'border-green-700' : 'border-green-300'} rounded-xl p-6 flex flex-col items-center justify-center`}>
+                        <Download className="h-10 w-10 text-green-400 dark:text-green-500 mb-2" />
+                        <p className="text-green-600 dark:text-green-400 font-medium">Waiting for file...</p>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>File will appear here when received</p>
+                        
+                        {receiveProgress > 0 && receiveProgress < 100 && (
+                          <div className="mt-4 w-full space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Receiving...</span>
+                              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{receiveProgress}%</span>
+                            </div>
+                            <div className={`w-full bg-gray-200 rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                              <div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${receiveProgress}%` }}></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className={`p-6 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} text-center`}>
+                          <FileUp className="h-12 w-12 text-green-500 dark:text-green-400 mx-auto mb-3" />
+                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>{receivingFileName}</p>
+                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-4`}>{formatFileSize(receivedFileSizeRef.current)}</p>
+                          
+                          <button 
+                            onClick={downloadReceivedFile}
+                            disabled={isDownloading}
+                            className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${
+                              isDownloading
+                                ? isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'
+                                : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
+                          >
+                            {isDownloading ? 'Processing...' : 'Download File'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </div>
-          
-          <div className="space-y-4">
-            <div 
-              onClick={() => fileInputRef.current.click()}
-              className={`relative border-2 border-dashed ${isDark ? 'border-blue-700' : 'border-blue-300'} rounded-xl p-6 cursor-pointer ${isDark ? 'hover:bg-blue-800/20' : 'hover:bg-blue-100'} transition duration-200 flex flex-col items-center justify-center`}
-            >
-              <FileUp className="h-10 w-10 text-blue-400 dark:text-blue-500 mb-2" />
-              <p className="text-blue-600 dark:text-blue-400 font-medium">Select a file to share</p>
-              <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>Click to browse your files</p>
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                onChange={handleFileChange} 
-                className="hidden" 
+
+          {/* Chat Section - Takes 40% of the space (2/5) */}
+          <div className="lg:col-span-2">
+            <div className={`h-full ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>
+              <Chat 
+                roomId={roomId} 
+                wsRef={wsRef} 
+                isConnected={peerConnected} 
               />
             </div>
-            
-            {file && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex items-center p-4 ${isDark ? 'bg-gray-700' : 'bg-white'} rounded-xl border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
-              >
-                <div className="flex-1">
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{file.name}</p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{formatFileSize(file.size)}</p>
-                </div>
-              </motion.div>
-            )}
-            
-            <motion.button 
-              onClick={sendFile} 
-              disabled={!file || (sendProgress > 0 && sendProgress < 100)}
-              className={`w-full py-4 px-6 rounded-xl font-medium flex items-center justify-center space-x-2 transition-all
-                ${file && !(sendProgress > 0 && sendProgress < 100) 
-                  ? "bg-blue-500 hover:bg-blue-600 text-white" 
-                  : `${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-300 text-gray-500'} cursor-not-allowed`}`}
-            >
-              {sendProgress > 0 && sendProgress < 100 ? (
-                <>
-                  <RefreshCw className="h-5 w-5 animate-spin" />
-                  <span>Sending... {sendProgress}%</span>
-                </>
-              ) : (
-                <>
-                  <Send className="h-5 w-5" />
-                  <span>Send File</span>
-                </>
-              )}
-            </motion.button>
-            
-            {sendProgress > 0 && (
-              <div className={`w-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${sendProgress}%` }}
-                ></div>
-              </div>
-            )}
           </div>
-        </motion.div>
-      )}
-      
-      {isReceiver && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`mt-6 p-6 ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'} rounded-xl shadow-sm border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <Download className="h-6 w-6 text-green-500 dark:text-green-400" />
-            <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Receive File</h3>
-          </div>
-          
-          {receiveProgress > 0 && !fileReady && (
-            <motion.div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Receiving: {receivingFileName}</span>
-                <span className="font-medium text-blue-600 dark:text-blue-400">{receiveProgress}%</span>
-              </div>
-              <div className={`w-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${receiveProgress}%` }}
-                ></div>
-              </div>
-            </motion.div>
-          )}
-          
-          {fileReady && !isDownloading && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`p-4 ${isDark ? 'bg-green-900/20' : 'bg-green-100'} rounded-xl border ${isDark ? 'border-green-800' : 'border-green-200'} mb-4`}
-            >
-              <div className="flex items-start">
-                <div className="flex-1">
-                  <p className="font-medium text-green-800 dark:text-green-400">File ready to download!</p>
-                  <p className="text-sm text-green-700 dark:text-green-500 mt-1">{receivingFileName} ({formatFileSize(receivedFileSizeRef.current)})</p>
-                </div>
-              </div>
-              <button
-                onClick={downloadReceivedFile}
-                className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl font-medium transition flex items-center justify-center space-x-2"
-              >
-                <Download className="h-5 w-5" />
-                <span>Download File</span>
-              </button>
-            </motion.div>
-          )}
-          
-          {isDownloading && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={`p-4 ${isDark ? 'bg-yellow-900/20' : 'bg-yellow-100'} rounded-xl border ${isDark ? 'border-yellow-800' : 'border-yellow-200'}`}
-            >
-              <div className="flex items-center space-x-2 mb-2">
-                <RefreshCw className="h-5 w-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
-                <p className="font-medium text-yellow-800 dark:text-yellow-400">Processing file for download...</p>
-              </div>
-              <p className="text-sm text-yellow-700 dark:text-yellow-500 mb-2">
-                Estimated time: {processingTime} seconds
-              </p>
-              <div className={`w-full ${isDark ? 'bg-yellow-800' : 'bg-yellow-200'} rounded-full h-2`}>
-                <div className="bg-yellow-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
+        </div>
       )}
     </div>
   );

@@ -2,9 +2,7 @@ import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
-import UploadFile from '../components/UploadFile';
-import DownloadFile from '../components/DownloadFile'; // Import new component
-import WebSocket from './temp';
+import WebSocket from './webSocket';
 
 const Landing = () => {
   const { isDark } = useTheme();
@@ -12,7 +10,12 @@ const Landing = () => {
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <Header />
-      <motion.main initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="container mx-auto px-4 pt-28 pb-16">
+      <motion.main 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.5 }} 
+        className="container mx-auto px-4 pt-28 pb-16"
+      >
         <motion.div className="max-w-4xl mx-auto text-center mb-16">
           <h1 className={`text-6xl font-bold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Share Files <span className={isDark ? 'text-blue-400' : 'text-blue-500'}>Instantly</span>
@@ -22,10 +25,8 @@ const Landing = () => {
           </p>
         </motion.div>
 
-        <motion.div className="max-w-5xl mx-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl overflow-hidden grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-            {/* <UploadFile />
-            <DownloadFile /> */}
+        <motion.div className="w-3/5 mx-auto">
+          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl overflow-hidden border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <WebSocket/>
           </div>
         </motion.div>

@@ -14,7 +14,7 @@ const Footer = () => {
     >
       <div className={`w-full border-t ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-8">
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-4">
                 <Share2 className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
@@ -27,40 +27,19 @@ const Footer = () => {
               </p>
             </div>
             
-            <div className="text-center">
-              <h3 className={`text-lg font-semibold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Connect
-              </h3>
-              <div className="flex justify-center space-x-8">
-                <motion.a
-                  whileHover={{ y: -4, scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-blue-500'} transition-colors`}
-                >
-                  <Github className="h-6 w-6" />
-                </motion.a>
-                <motion.a
-                  whileHover={{ y: -4, scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  href="https://twitter.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-blue-500'} transition-colors`}
-                >
-                  <Twitter className="h-6 w-6" />
-                </motion.a>
-              </div>
-            </div>
-
             <div className="text-center md:text-right">
               <h3 className={`text-lg font-semibold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Features
               </h3>
               <ul className="space-y-3">
-                {['Secure File Transfer', '24-hour Storage', 'Any File Type'].map((feature, index) => (
+                {[
+                  'Secure File Transfer',
+                  'Peer-to-Peer Transfers',
+                  'No Server Storage',
+                  'End-to-End Encryption',
+                  'Any File Type',
+                  'No Account Needed'
+                ].map((feature, index) => (
                   <motion.li 
                     key={index}
                     whileHover={{ x: -4 }}

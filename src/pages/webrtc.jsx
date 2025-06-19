@@ -38,6 +38,19 @@ const FileShare = () => {
   // Constants
   const CHUNK_SIZE = 1024 * 256; // 256KB
 
+  // Add state for time estimates
+  const [sendTimeLeft, setSendTimeLeft] = useState(null);
+  const [receiveTimeLeft, setReceiveTimeLeft] = useState(null);
+  const [countdown, setCountdown] = useState(0);
+
+  // Helper to format time as mm:ss
+  const formatTime = (seconds) => {
+    if (seconds == null) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m > 0 ? m + ':' : ''}${s.toString().padStart(2, '0')}`;
+  };
+
   // Initialize WebSocket connection for signaling
   useEffect(() => {
     wsRef.current = ws;
@@ -98,28 +111,24 @@ const FileShare = () => {
   };
 
   // DataChannel events for file transfer
+  const receiveStartTimeRef = useRef(null);
   const setupDataChannelEvents = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
-      console.log('[WebRTC] DataChannel open');
       setPeerConnected(true);
       setStatus('Peer connected! You can now share files.');
     };
     dc.onclose = () => {
-      console.warn('[WebRTC] DataChannel closed');
       setPeerConnected(false);
       setStatus('Peer disconnected.');
     };
     dc.onerror = (e) => {
-      console.error('[WebRTC] DataChannel error:', e);
       setStatus('DataChannel error: ' + e.message);
     };
     dc.onmessage = (event) => {
       if (typeof event.data === 'string') {
-        // Meta info
         const meta = JSON.parse(event.data);
         if (meta.type === 'file-meta') {
-          console.log('[WebRTC] Received file meta:', meta);
           receivedChunksRef.current = [];
           receivedFileSizeRef.current = meta.fileSize;
           totalChunksRef.current = meta.totalChunks;
@@ -130,20 +139,30 @@ const FileShare = () => {
           setReceiveProgress(0);
           setIsReceiver(true);
           setFileReady(false);
+          setReceiveTimeLeft(null);
+          receiveStartTimeRef.current = Date.now();
         }
       } else {
-        // File chunk
         receivedChunksRef.current.push(new Uint8Array(event.data));
         receivedChunksCountRef.current++;
         const progress = Math.floor((receivedChunksCountRef.current / totalChunksRef.current) * 100);
         setReceiveProgress(progress);
-        if (progress % 10 === 0) {
-          console.log(`[WebRTC] Receiving file: ${progress}%`);
+        // Estimate time left for receiving
+        if (receivedChunksCountRef.current % 10 === 0 || receivedChunksCountRef.current === totalChunksRef.current) {
+          if (!receiveStartTimeRef.current) receiveStartTimeRef.current = Date.now();
+          const elapsed = (Date.now() - receiveStartTimeRef.current) / 1000;
+          const receivedBytes = receivedChunksRef.current.reduce((acc, chunk) => acc + (chunk ? chunk.length : 0), 0);
+          if (elapsed > 0 && receivedChunksCountRef.current > 0) {
+            const avgSpeed = receivedBytes / elapsed; // bytes/sec
+            const bytesLeft = receivedFileSizeRef.current - receivedBytes;
+            const timeLeft = avgSpeed > 0 ? Math.ceil(bytesLeft / avgSpeed) : null;
+            setReceiveTimeLeft(timeLeft);
+          }
         }
         if (progress === 100) {
           setStatus('File received successfully! Click to download.');
           setFileReady(true);
-          console.log('[WebRTC] File received completely.');
+          setReceiveTimeLeft(null);
         }
       }
     };
@@ -283,11 +302,24 @@ const FileShare = () => {
     const dc = dataChannelRef.current;
     const THRESHOLD = 1 * 1024 * 1024; // 1MB
     let stopped = false;
+    let startTime = Date.now();
+    let lastUpdate = Date.now();
+    let sentBytes = 0;
+
+    // Helper to yield to event loop for smoother UI
+    const yieldToEventLoop = () => new Promise(resolve => {
+      if (window.requestIdleCallback) {
+        window.requestIdleCallback(resolve, { timeout: 10 });
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
 
     async function sendNextChunk() {
       if (stopped) return;
       if (chunkIndex >= totalChunks) {
         setStatus('File sent successfully!');
+        setSendTimeLeft(null);
         return;
       }
       if (dc.bufferedAmount > THRESHOLD) {
@@ -297,6 +329,7 @@ const FileShare = () => {
       try {
         const chunk = await file.slice(offset, end).arrayBuffer();
         dc.send(chunk);
+        sentBytes += end - offset;
       } catch (err) {
         setStatus('Error sending file: ' + err.message);
         stopped = true;
@@ -306,7 +339,20 @@ const FileShare = () => {
       chunkIndex++;
       const progress = Math.floor((chunkIndex / totalChunks) * 100);
       setSendProgress(progress);
-      setTimeout(sendNextChunk, 0);
+      // Estimate time left every 10 chunks or on last chunk
+      if (chunkIndex % 10 === 0 || chunkIndex === totalChunks) {
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000; // seconds
+        if (elapsed > 0 && chunkIndex > 0) {
+          const avgSpeed = sentBytes / elapsed; // bytes/sec
+          const bytesLeft = file.size - sentBytes;
+          const timeLeft = avgSpeed > 0 ? Math.ceil(bytesLeft / avgSpeed) : null;
+          setSendTimeLeft(timeLeft);
+        }
+        lastUpdate = now;
+      }
+      await yieldToEventLoop(); // Yield to event loop for UI responsiveness
+      sendNextChunk();
     }
 
     dc.bufferedAmountLowThreshold = THRESHOLD;
@@ -319,9 +365,6 @@ const FileShare = () => {
     sendNextChunk();
   };
 
-  // Add countdown to downloadReceivedFile
-  const [countdown, setCountdown] = useState(0);
-
   const downloadReceivedFile = () => {
     setIsDownloading(true);
     const estimatedTime = Math.max(1, Math.ceil(receivedFileSizeRef.current / (1024 * 1024) * 0.1));
@@ -329,30 +372,19 @@ const FileShare = () => {
     setCountdown(estimatedTime);
 
     // Countdown timer
-    let timer = estimatedTime;
+    let timerVal = estimatedTime;
     const interval = setInterval(() => {
-      timer--;
-      setCountdown(timer);
-      if (timer <= 0) {
+      timerVal--;
+      setCountdown(timerVal);
+      if (timerVal <= 0) {
         clearInterval(interval);
       }
     }, 1000);
 
     setTimeout(() => {
       try {
-        let totalLength = 0;
-        receivedChunksRef.current.forEach(chunk => {
-          if (chunk) totalLength += chunk.length;
-        });
-        const combinedArray = new Uint8Array(totalLength);
-        let offset = 0;
-        receivedChunksRef.current.forEach(chunk => {
-          if (chunk) {
-            combinedArray.set(chunk, offset);
-            offset += chunk.length;
-          }
-        });
-        const fileBlob = new Blob([combinedArray], { type: receivedMimeTypeRef.current });
+        // Optimization: Use Blob directly from array of Uint8Array chunks
+        const fileBlob = new Blob(receivedChunksRef.current, { type: receivedMimeTypeRef.current });
         const element = document.createElement('a');
         element.href = URL.createObjectURL(fileBlob);
         element.download = receivingFileName || 'downloaded_file';
@@ -552,6 +584,11 @@ const FileShare = () => {
                             <div className="flex justify-between text-sm">
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Sending...</span>
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{sendProgress}%</span>
+                              {sendTimeLeft !== null && (
+                                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                                  {sendTimeLeft > 0 ? `~${formatTime(sendTimeLeft)} left` : 'Finishing...'}
+                                </span>
+                              )}
                             </div>
                             <div className={`w-full bg-gray-200 rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                               <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${sendProgress}%` }}></div>
@@ -595,6 +632,11 @@ const FileShare = () => {
                             <div className="flex justify-between text-sm">
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Receiving...</span>
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{receiveProgress}%</span>
+                              {receiveTimeLeft !== null && (
+                                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                                  {receiveTimeLeft > 0 ? `~${formatTime(receiveTimeLeft)} left` : 'Finishing...'}
+                                </span>
+                              )}
                             </div>
                             <div className={`w-full bg-gray-200 rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                               <div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${receiveProgress}%` }}></div>
@@ -617,7 +659,16 @@ const FileShare = () => {
                                 : 'bg-green-500 hover:bg-green-600 text-white'
                             }`}
                           >
-                            {isDownloading ? (countdown > 0 ? `Processing... (${countdown}s)` : 'Processing...') : 'Download File'}
+                            {isDownloading ? (
+                              <button 
+                                disabled
+                                className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'}`}
+                              >
+                                {countdown > 0 ? `Processing... (${formatTime(countdown)})` : 'Processing...'}
+                              </button>
+                            ) : (
+                              'Download File'
+                            )}
                           </button>
                         </div>
                       </div>

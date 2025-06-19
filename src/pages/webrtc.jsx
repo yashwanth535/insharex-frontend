@@ -22,35 +22,36 @@ const FileShare = () => {
   const [fileReady, setFileReady] = useState(false);
   const [isRoomCreator, setIsRoomCreator] = useState(false);
   const [copiedRoomId, setCopiedRoomId] = useState(false);
-  
-  // Use refs for data that doesn't need to trigger re-renders
-  const receivedChunksRef = useRef([]);
-  const receivedFileSizeRef = useRef(0);
-  const totalChunksRef = useRef(0);
-  const receivedChunksCountRef = useRef(0);
-  const receivedMimeTypeRef = useRef('application/octet-stream');
+
+  // WebRTC refs
+  const peerConnectionRef = useRef(null);
+  const dataChannelRef = useRef(null);
   const wsRef = useRef(null);
   const fileInputRef = useRef(null);
-  const chunkTimeoutRef = useRef(null);
-  const pendingAcksRef = useRef({});
+  const receivedChunksRef = useRef([]);
+  const receivedFileSizeRef = useRef(0);
+  const receivedMimeTypeRef = useRef('application/octet-stream');
+  const totalChunksRef = useRef(0);
+  const receivedChunksCountRef = useRef(0);
+  const sendingFileMetaRef = useRef(null);
 
   // Constants
-  const CHUNK_SIZE = 1024 * 256; // Reduced to 256KB for better performance
-  const ACK_TIMEOUT = 3000; // 3 seconds timeout for acknowledgment
-  const MAX_RETRY = 3;
+  const CHUNK_SIZE = 1024 * 256; // 256KB
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection for signaling
   useEffect(() => {
     wsRef.current = ws;
-    
-    // Ensure connection is open
     if (ws.readyState !== 1) {
       ws.onopen = () => {
-        console.log('WebSocket connection established');
+        console.log('[WebSocket] Connection established');
       };
     }
-    
-    // Clean up on unmount
+    ws.onerror = (e) => {
+      console.error('[WebSocket] Error:', e);
+    };
+    ws.onclose = (e) => {
+      console.warn('[WebSocket] Closed:', e);
+    };
     return () => {
       if (wsRef.current) {
         wsRef.current.onmessage = null;
@@ -58,14 +59,169 @@ const FileShare = () => {
     };
   }, []);
 
+  // WebRTC: Create PeerConnection and DataChannel
+  const setupPeerConnection = (isInitiator) => {
+    console.log('[WebRTC] Setting up PeerConnection. Initiator:', isInitiator);
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    });
+    peerConnectionRef.current = pc;
+
+    if (isInitiator) {
+      const dc = pc.createDataChannel('file');
+      dataChannelRef.current = dc;
+      console.log('[WebRTC] DataChannel created by initiator');
+      setupDataChannelEvents(dc);
+    } else {
+      pc.ondatachannel = (event) => {
+        dataChannelRef.current = event.channel;
+        console.log('[WebRTC] DataChannel received by non-initiator');
+        setupDataChannelEvents(event.channel);
+      };
+    }
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log('[WebRTC] ICE candidate:', event.candidate);
+        wsRef.current.send(JSON.stringify({
+          type: 'signal',
+          roomId,
+          candidate: event.candidate,
+        }));
+      }
+    };
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+    };
+  };
+
+  // DataChannel events for file transfer
+  const setupDataChannelEvents = (dc) => {
+    dc.binaryType = 'arraybuffer';
+    dc.onopen = () => {
+      console.log('[WebRTC] DataChannel open');
+      setPeerConnected(true);
+      setStatus('Peer connected! You can now share files.');
+    };
+    dc.onclose = () => {
+      console.warn('[WebRTC] DataChannel closed');
+      setPeerConnected(false);
+      setStatus('Peer disconnected.');
+    };
+    dc.onerror = (e) => {
+      console.error('[WebRTC] DataChannel error:', e);
+      setStatus('DataChannel error: ' + e.message);
+    };
+    dc.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        // Meta info
+        const meta = JSON.parse(event.data);
+        if (meta.type === 'file-meta') {
+          console.log('[WebRTC] Received file meta:', meta);
+          receivedChunksRef.current = [];
+          receivedFileSizeRef.current = meta.fileSize;
+          totalChunksRef.current = meta.totalChunks;
+          receivedChunksCountRef.current = 0;
+          receivedMimeTypeRef.current = meta.mimeType || 'application/octet-stream';
+          setReceivingFileName(meta.fileName);
+          setStatus(`Receiving: ${meta.fileName}`);
+          setReceiveProgress(0);
+          setIsReceiver(true);
+          setFileReady(false);
+        }
+      } else {
+        // File chunk
+        receivedChunksRef.current.push(new Uint8Array(event.data));
+        receivedChunksCountRef.current++;
+        const progress = Math.floor((receivedChunksCountRef.current / totalChunksRef.current) * 100);
+        setReceiveProgress(progress);
+        if (progress % 10 === 0) {
+          console.log(`[WebRTC] Receiving file: ${progress}%`);
+        }
+        if (progress === 100) {
+          setStatus('File received successfully! Click to download.');
+          setFileReady(true);
+          console.log('[WebRTC] File received completely.');
+        }
+      }
+    };
+  };
+
+  // Signaling message handler
+  useEffect(() => {
+    if (!wsRef.current) return;
+    const handleMessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[WebSocket] Message received:', data);
+        switch (data.type) {
+          case 'room-created':
+            setRoomId(data.roomId);
+            setStatus('Room created. Share this code with others to join.');
+            break;
+          case 'peer-joined':
+            setupPeerConnection(isRoomCreator);
+            if (isRoomCreator) {
+              // Create offer
+              const offer = await peerConnectionRef.current.createOffer();
+              await peerConnectionRef.current.setLocalDescription(offer);
+              wsRef.current.send(JSON.stringify({
+                type: 'signal',
+                roomId,
+                sdp: offer,
+              }));
+              console.log('[WebRTC] Sent SDP offer');
+            }
+            break;
+          case 'signal':
+            if (data.sdp) {
+              if (data.sdp.type === 'offer') {
+                setupPeerConnection(false);
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                const answer = await peerConnectionRef.current.createAnswer();
+                await peerConnectionRef.current.setLocalDescription(answer);
+                wsRef.current.send(JSON.stringify({
+                  type: 'signal',
+                  roomId,
+                  sdp: answer,
+                }));
+                console.log('[WebRTC] Received offer, sent answer');
+              } else if (data.sdp.type === 'answer') {
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                console.log('[WebRTC] Received answer, set remote description');
+              }
+            } else if (data.candidate) {
+              await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+              console.log('[WebRTC] Added ICE candidate');
+            }
+            break;
+          case 'chat-message':
+            // Log chat message
+            console.log('[Chat] Received chat message:', data);
+            break;
+          default:
+            // Chat and other messages handled elsewhere
+            break;
+        }
+      } catch (error) {
+        console.error('[WebSocket] Error processing signaling message:', error);
+      }
+    };
+    wsRef.current.onmessage = handleMessage;
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.onmessage = null;
+      }
+    };
+  }, [roomId, isRoomCreator]);
 
   const createRoom = () => {
     if (!wsRef.current || wsRef.current.readyState !== 1) {
       setStatus('Error: WebSocket not connected. Please refresh the page.');
       return;
     }
-    
-    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
     wsRef.current.send(JSON.stringify({ type: 'create-room' }));
     setIsReceiver(false);
     setIsRoomCreator(true);
@@ -77,14 +233,12 @@ const FileShare = () => {
       setStatus('Please enter a room code.');
       return;
     }
-    
     if (!wsRef.current || wsRef.current.readyState !== 1) {
       setStatus('Error: WebSocket not connected. Please refresh the page.');
       return;
     }
-    
     wsRef.current.send(JSON.stringify({ type: 'join-room', roomId }));
-    setIsReceiver(true); 
+    setIsReceiver(true);
     setIsRoomCreator(false);
     resetFileState();
   };
@@ -98,8 +252,6 @@ const FileShare = () => {
     receivedChunksCountRef.current = 0;
     totalChunksRef.current = 0;
     receivedFileSizeRef.current = 0;
-    pendingAcksRef.current = {};
-    clearTimeout(chunkTimeoutRef.current);
   };
 
   const handleFileChange = (e) => {
@@ -110,227 +262,112 @@ const FileShare = () => {
     }
   };
 
-  // Improved sendFile function with retries and acknowledgment tracking
+  // Send file over WebRTC DataChannel
   const sendFile = async () => {
-    if (!file || !peerConnected || !wsRef.current) return;
-    
+    if (!file || !peerConnected || !dataChannelRef.current) {
+      console.warn('[WebRTC] Cannot send file: missing file, peer, or data channel');
+      return;
+    }
     setIsReceiver(false);
-    
-    // Send file metadata
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    wsRef.current.send(JSON.stringify({ 
-      type: 'file-meta', 
-      roomId, 
-      fileName: file.name, 
+    const meta = {
+      type: 'file-meta',
+      fileName: file.name,
       fileSize: file.size,
       mimeType: file.type || 'application/octet-stream',
-      totalChunks
-    }));
-    
-    // Send chunks with acknowledgment tracking
-    const totalSize = file.size;
-    let start = 0;
-    
-    // Helper function to send a single chunk
-    const sendChunk = async (start, chunkIndex, retryCount = 0) => {
-      if (retryCount > MAX_RETRY) {
-        setStatus(`Failed to send chunk ${chunkIndex} after multiple attempts.`);
+      totalChunks,
+    };
+    dataChannelRef.current.send(JSON.stringify(meta));
+    console.log('[WebRTC] Sent file meta:', meta);
+
+    let offset = 0;
+    let chunkIndex = 0;
+    const dc = dataChannelRef.current;
+    const THRESHOLD = 1 * 1024 * 1024; // 1MB
+    let stopped = false;
+
+    async function sendNextChunk() {
+      if (stopped) return;
+      if (chunkIndex >= totalChunks) {
+        setStatus('File sent successfully!');
+        console.log('[WebRTC] File sent completely.');
         return;
       }
-      
-      const end = Math.min(start + CHUNK_SIZE, totalSize);
-      const chunk = file.slice(start, end);
-      const buffer = await chunk.arrayBuffer();
-      const byteArray = Array.from(new Uint8Array(buffer));
-      
-      wsRef.current.send(JSON.stringify({ 
-        type: 'file-chunk', 
-        roomId, 
-        chunk: byteArray,
-        chunkIndex,
-        totalChunks
-      }));
-      
-      // Set timeout for acknowledgment
-      pendingAcksRef.current[chunkIndex] = true;
-      
-      chunkTimeoutRef.current = setTimeout(() => {
-        if (pendingAcksRef.current[chunkIndex]) {
-          console.log(`Retrying chunk ${chunkIndex}, attempt ${retryCount + 1}`);
-          sendChunk(start, chunkIndex, retryCount + 1);
-        }
-      }, ACK_TIMEOUT);
-    };
-    
-    // Start sending chunks
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-      const chunkStart = chunkIndex * CHUNK_SIZE;
-      
-      // Wait for previous chunk to be acknowledged before sending next
-      if (chunkIndex > 0) {
-        await new Promise(resolve => {
-          const checkPrevious = () => {
-            if (!pendingAcksRef.current[chunkIndex - 1]) {
-              resolve();
-            } else {
-              setTimeout(checkPrevious, 100);
-            }
-          };
-          checkPrevious();
-        });
+      if (dc.bufferedAmount > THRESHOLD) {
+        console.log(`[WebRTC] Buffer full (${dc.bufferedAmount}), waiting...`);
+        return;
       }
-      
-      await sendChunk(chunkStart, chunkIndex);
-      
-      // Update progress
-      const progress = Math.floor(((chunkIndex + 1) / totalChunks) * 100);
+      const end = Math.min(offset + CHUNK_SIZE, file.size);
+      try {
+        const chunk = await file.slice(offset, end).arrayBuffer();
+        dc.send(chunk);
+      } catch (err) {
+        console.error('[WebRTC] Error sending chunk:', err);
+        setStatus('Error sending file: ' + err.message);
+        stopped = true;
+        return;
+      }
+      offset = end;
+      chunkIndex++;
+      const progress = Math.floor((chunkIndex / totalChunks) * 100);
       setSendProgress(progress);
+      if (progress % 10 === 0) {
+        console.log(`[WebRTC] Sending file: ${progress}%`);
+      }
+      // Try to send next chunk immediately
+      setTimeout(sendNextChunk, 0);
     }
+
+    dc.bufferedAmountLowThreshold = THRESHOLD;
+    dc.onbufferedamountlow = () => {
+      if (!stopped) {
+        console.log('[WebRTC] bufferedamountlow event, resuming send');
+        sendNextChunk();
+      }
+    };
+
+    // Start sending
+    sendNextChunk();
   };
 
   const downloadReceivedFile = () => {
     setIsDownloading(true);
-    
-    // Estimate processing time based on file size
     const estimatedTime = Math.max(1, Math.ceil(receivedFileSizeRef.current / (1024 * 1024) * 0.1));
     setProcessingTime(estimatedTime);
-    
     setTimeout(() => {
       try {
-        // Combine all chunks
         let totalLength = 0;
         receivedChunksRef.current.forEach(chunk => {
           if (chunk) totalLength += chunk.length;
         });
-        
         const combinedArray = new Uint8Array(totalLength);
         let offset = 0;
-        
         receivedChunksRef.current.forEach(chunk => {
           if (chunk) {
             combinedArray.set(chunk, offset);
             offset += chunk.length;
           }
         });
-        
-        // Create blob and download
         const fileBlob = new Blob([combinedArray], { type: receivedMimeTypeRef.current });
         const element = document.createElement('a');
         element.href = URL.createObjectURL(fileBlob);
         element.download = receivingFileName || 'downloaded_file';
         document.body.appendChild(element);
         element.click();
-        
-        // Clean up
         setTimeout(() => {
           URL.revokeObjectURL(element.href);
           document.body.removeChild(element);
         }, 100);
-        
         setIsDownloading(false);
         setStatus('File downloaded successfully!');
+        console.log('[WebRTC] File downloaded.');
       } catch (error) {
-        console.error('Download error:', error);
+        console.error('[WebRTC] Download error:', error);
         setStatus('Error downloading file: ' + error.message);
         setIsDownloading(false);
       }
     }, estimatedTime * 1000);
   };
-
-  // WebSocket message handler
-  useEffect(() => {
-    if (!wsRef.current) return;
-    
-    const handleMessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        switch (data.type) {
-          case 'room-created':
-            setRoomId(data.roomId);
-            setStatus('Room created. Share this code with others to join.');
-            break;
-            
-          case 'peer-joined':
-            setPeerConnected(true);
-            setStatus('Peer connected! You can now share files.');
-            break;
-            
-          case 'file-meta':
-            receivedChunksRef.current = new Array(data.totalChunks).fill(null);
-            receivedFileSizeRef.current = data.fileSize;
-            totalChunksRef.current = data.totalChunks;
-            receivedChunksCountRef.current = 0;
-            receivedMimeTypeRef.current = data.mimeType || 'application/octet-stream';
-            setReceivingFileName(data.fileName);
-            setStatus(`Receiving: ${data.fileName}`);
-            setReceiveProgress(0);
-            setIsReceiver(true);
-            setFileReady(false);
-            break;
-            
-          case 'file-chunk':
-            // Process chunk and send acknowledgment
-            const chunk = new Uint8Array(data.chunk);
-            receivedChunksRef.current[data.chunkIndex] = chunk;
-            receivedChunksCountRef.current++;
-            
-            // Send acknowledgment
-            wsRef.current.send(JSON.stringify({
-              type: 'chunk-ack',
-              roomId,
-              chunkIndex: data.chunkIndex
-            }));
-            
-            // Update progress
-            const progress = Math.floor((receivedChunksCountRef.current / data.totalChunks) * 100);
-            setReceiveProgress(progress);
-            
-            // Check if file is complete
-            if (progress === 100) {
-              receivedChunksRef.current = receivedChunksRef.current.filter(chunk => chunk !== null);
-              setStatus('File received successfully! Click to download.');
-              setFileReady(true);
-              
-              // Send final acknowledgment that all chunks were received
-              wsRef.current.send(JSON.stringify({
-                type: 'file-received',
-                roomId
-              }));
-            }
-            break;
-            
-          case 'chunk-ack':
-            // Clear acknowledgment timeout and mark chunk as acknowledged
-            if (pendingAcksRef.current[data.chunkIndex]) {
-              pendingAcksRef.current[data.chunkIndex] = false;
-              clearTimeout(chunkTimeoutRef.current);
-            }
-            break;
-            
-          case 'file-received':
-            // Receiver has confirmed all chunks were received
-            setStatus('File sent successfully!');
-            break;
-            
-          case 'chat-message':
-            // Chat messages are handled by the Chat component
-            // Just pass them through to avoid conflicts
-            break;
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
-    };
-    
-    wsRef.current.onmessage = handleMessage;
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.onmessage = null;
-      }
-    };
-  }, [roomId, isReceiver]);
 
   // Helper function to format file size
   const formatFileSize = (bytes) => {
@@ -344,21 +381,17 @@ const FileShare = () => {
     try {
       await navigator.clipboard.writeText(roomId);
       setCopiedRoomId(true);
-      
-      // Reset the copied state after 2 seconds
       setTimeout(() => {
         setCopiedRoomId(false);
       }, 2000);
     } catch (err) {
       console.error('Failed to copy room code:', err);
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = roomId;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      
       setCopiedRoomId(true);
       setTimeout(() => {
         setCopiedRoomId(false);
@@ -378,7 +411,6 @@ const FileShare = () => {
         <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>P2P File Sharing</h2>
         <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2`}>Transfer files directly to another device</p>
       </div>
-      
       <AnimatePresence>
         {status && (
           <motion.div 
@@ -397,7 +429,6 @@ const FileShare = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
       {!peerConnected && (
         <div className="space-y-6">
           <motion.div 
@@ -409,7 +440,6 @@ const FileShare = () => {
               <Users className="h-6 w-6 text-blue-500 dark:text-blue-400" />
               <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create or Join Room</h3>
             </div>
-            
             <button 
               onClick={createRoom} 
               className="w-full mb-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-4 px-6 rounded-xl transition duration-200 flex items-center justify-center space-x-2"
@@ -417,7 +447,6 @@ const FileShare = () => {
               <Users className="h-5 w-5" />
               <span>Create New Room</span>
             </button>
-            
             {roomId && isRoomCreator && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
@@ -451,7 +480,6 @@ const FileShare = () => {
                 </div>
               </motion.div>
             )}
-            
             {!isRoomCreator && (
               <div className="mt-4">
                 <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Join Existing Room</label>
@@ -479,7 +507,6 @@ const FileShare = () => {
           </motion.div>
         </div>
       )}
-
       {peerConnected && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" style={{ minHeight: '400px', maxHeight: '450px' }}>
           {/* File Transfer Section - Takes 60% of the space (3/5) */}
@@ -495,7 +522,6 @@ const FileShare = () => {
                     <Upload className="h-6 w-6 text-blue-500 dark:text-blue-400" />
                     <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Send File</h3>
                   </div>
-                  
                   <div className="flex-1 flex flex-col">
                     <div 
                       onClick={() => fileInputRef.current.click()}
@@ -511,14 +537,12 @@ const FileShare = () => {
                         className="hidden" 
                       />
                     </div>
-                    
                     {file && (
                       <div className="mt-4 space-y-3">
                         <div className={`p-3 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                           <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{file.name}</p>
                           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{formatFileSize(file.size)}</p>
                         </div>
-                        
                         {sendProgress > 0 && sendProgress < 100 && (
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
@@ -530,7 +554,6 @@ const FileShare = () => {
                             </div>
                           </div>
                         )}
-                        
                         <button 
                           onClick={sendFile}
                           disabled={sendProgress > 0 && sendProgress < 100}
@@ -547,7 +570,6 @@ const FileShare = () => {
                   </div>
                 </motion.div>
               )}
-
               {isReceiver && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -558,14 +580,12 @@ const FileShare = () => {
                     <Download className="h-6 w-6 text-green-500 dark:text-green-400" />
                     <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Receive File</h3>
                   </div>
-                  
                   <div className="flex-1 flex flex-col">
                     {!fileReady ? (
                       <div className={`flex-1 border-2 border-dashed ${isDark ? 'border-green-700' : 'border-green-300'} rounded-xl p-6 flex flex-col items-center justify-center`}>
                         <Download className="h-10 w-10 text-green-400 dark:text-green-500 mb-2" />
                         <p className="text-green-600 dark:text-green-400 font-medium">Waiting for file...</p>
                         <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>File will appear here when received</p>
-                        
                         {receiveProgress > 0 && receiveProgress < 100 && (
                           <div className="mt-4 w-full space-y-2">
                             <div className="flex justify-between text-sm">
@@ -584,7 +604,6 @@ const FileShare = () => {
                           <FileUp className="h-12 w-12 text-green-500 dark:text-green-400 mx-auto mb-3" />
                           <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>{receivingFileName}</p>
                           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-4`}>{formatFileSize(receivedFileSizeRef.current)}</p>
-                          
                           <button 
                             onClick={downloadReceivedFile}
                             disabled={isDownloading}
@@ -604,7 +623,6 @@ const FileShare = () => {
               )}
             </div>
           </div>
-
           {/* Chat Section - Takes 40% of the space (2/5) */}
           <div className="lg:col-span-2">
             <div className={`h-full ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>

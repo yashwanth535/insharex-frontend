@@ -265,7 +265,6 @@ const FileShare = () => {
   // Send file over WebRTC DataChannel
   const sendFile = async () => {
     if (!file || !peerConnected || !dataChannelRef.current) {
-      console.warn('[WebRTC] Cannot send file: missing file, peer, or data channel');
       return;
     }
     setIsReceiver(false);
@@ -278,7 +277,6 @@ const FileShare = () => {
       totalChunks,
     };
     dataChannelRef.current.send(JSON.stringify(meta));
-    console.log('[WebRTC] Sent file meta:', meta);
 
     let offset = 0;
     let chunkIndex = 0;
@@ -290,11 +288,9 @@ const FileShare = () => {
       if (stopped) return;
       if (chunkIndex >= totalChunks) {
         setStatus('File sent successfully!');
-        console.log('[WebRTC] File sent completely.');
         return;
       }
       if (dc.bufferedAmount > THRESHOLD) {
-        console.log(`[WebRTC] Buffer full (${dc.bufferedAmount}), waiting...`);
         return;
       }
       const end = Math.min(offset + CHUNK_SIZE, file.size);
@@ -302,7 +298,6 @@ const FileShare = () => {
         const chunk = await file.slice(offset, end).arrayBuffer();
         dc.send(chunk);
       } catch (err) {
-        console.error('[WebRTC] Error sending chunk:', err);
         setStatus('Error sending file: ' + err.message);
         stopped = true;
         return;
@@ -311,29 +306,38 @@ const FileShare = () => {
       chunkIndex++;
       const progress = Math.floor((chunkIndex / totalChunks) * 100);
       setSendProgress(progress);
-      if (progress % 10 === 0) {
-        console.log(`[WebRTC] Sending file: ${progress}%`);
-      }
-      // Try to send next chunk immediately
       setTimeout(sendNextChunk, 0);
     }
 
     dc.bufferedAmountLowThreshold = THRESHOLD;
     dc.onbufferedamountlow = () => {
       if (!stopped) {
-        console.log('[WebRTC] bufferedamountlow event, resuming send');
         sendNextChunk();
       }
     };
 
-    // Start sending
     sendNextChunk();
   };
+
+  // Add countdown to downloadReceivedFile
+  const [countdown, setCountdown] = useState(0);
 
   const downloadReceivedFile = () => {
     setIsDownloading(true);
     const estimatedTime = Math.max(1, Math.ceil(receivedFileSizeRef.current / (1024 * 1024) * 0.1));
     setProcessingTime(estimatedTime);
+    setCountdown(estimatedTime);
+
+    // Countdown timer
+    let timer = estimatedTime;
+    const interval = setInterval(() => {
+      timer--;
+      setCountdown(timer);
+      if (timer <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
     setTimeout(() => {
       try {
         let totalLength = 0;
@@ -360,11 +364,11 @@ const FileShare = () => {
         }, 100);
         setIsDownloading(false);
         setStatus('File downloaded successfully!');
-        console.log('[WebRTC] File downloaded.');
+        setCountdown(0);
       } catch (error) {
-        console.error('[WebRTC] Download error:', error);
         setStatus('Error downloading file: ' + error.message);
         setIsDownloading(false);
+        setCountdown(0);
       }
     }, estimatedTime * 1000);
   };
@@ -613,7 +617,7 @@ const FileShare = () => {
                                 : 'bg-green-500 hover:bg-green-600 text-white'
                             }`}
                           >
-                            {isDownloading ? 'Processing...' : 'Download File'}
+                            {isDownloading ? (countdown > 0 ? `Processing... (${countdown}s)` : 'Processing...') : 'Download File'}
                           </button>
                         </div>
                       </div>

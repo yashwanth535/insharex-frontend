@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Share2, Shield, Clock, Sun, Moon } from 'lucide-react'
+import { Shield, Clock, Sun, Moon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 
@@ -24,7 +24,11 @@ const Header = () => {
             className="flex items-center space-x-3"
           >
             <Link to="/" className="flex items-center space-x-3">
-              <Share2 className={`h-8 w-8 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
+              <img
+                src="/share.png"
+                alt="ShareX Logo"
+                className="h-8 w-8 object-contain"
+              />
               <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ShareX
               </span>

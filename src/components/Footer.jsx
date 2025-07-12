@@ -19,7 +19,7 @@ const Footer = () => {
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-4">
                 <Share2 className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
                 <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ShareX
+                  InShareX
                 </h3>
               </div>
               <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
@@ -62,14 +62,33 @@ const Footer = () => {
             transition={{ delay: 0.8 }}
             className={`mt-12 pt-8 border-t ${isDark ? 'border-gray-800' : 'border-gray-200'}`}
           >
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                © {new Date().getFullYear()} ShareX. All rights reserved.
-              </p>
-              <div className="flex items-center mt-4 md:mt-0">
-                <span className={`text-sm flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Made with <Heart className="h-4 w-4 mx-2 text-red-500" /> by ShareX Team
+            <div className="flex flex-col items-center space-y-4">
+              <p className={`text-sm md:text-base text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Created by{" "}
+                <a 
+                  href="https://yashwanth.site/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[#20D982] hover:text-[#bbe86f] transition-colors duration-300 underline"
+                >
+                  Yashwanth Munikuntla
+                </a>
+                {" "} — also known as{" "}
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                  Yashwanth Goud, yashwanth535
                 </span>
+                , passionate full-stack developer & creator of MoneyMind.
+              </p>
+              
+              <div className="flex flex-col md:flex-row items-center justify-between w-full">
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                © {new Date().getFullYear()} InShareX. All rights reserved.
+              </p>
+                <div className="flex items-center mt-4 md:mt-0">
+                  <span className={`text-sm flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Made with <Heart className="h-4 w-4 mx-2 text-red-500" /> by InShareX Team
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

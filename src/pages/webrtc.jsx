@@ -444,7 +444,7 @@ const FileShare = () => {
   return (
     <div className={`w-full p-8 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
       <div className="mb-8 text-center">
-        <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>P2P File Sharing</h2>
+        <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Insharex File Sharing</h2>
         <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2`}>Transfer files directly to another device</p>
       </div>
       <AnimatePresence>

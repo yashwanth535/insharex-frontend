@@ -26,11 +26,11 @@ const Header = () => {
             <Link to="/" className="flex items-center space-x-3">
               <img
                 src="/share.png"
-                alt="ShareX Logo"
+                alt="InShareX Logo"
                 className="h-8 w-8 object-contain"
               />
               <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                ShareX
+                InShareX
               </span>
             </Link>
           </motion.div>

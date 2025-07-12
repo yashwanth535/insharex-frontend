@@ -19,10 +19,13 @@ const Landing = () => {
       >
         <motion.div className="max-w-4xl mx-auto text-center mb-16">
           <h1 className={`text-6xl font-bold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Share Files <span className={isDark ? 'text-blue-400' : 'text-blue-500'}>Instantly</span>
+            InShareX: Share Files <span className={isDark ? 'text-blue-400' : 'text-blue-500'}>Instantly</span>
           </h1>
           <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-            Secure file sharing with a simple 6-digit code. No registration required.
+            InShareX provides secure peer-to-peer file sharing with a simple 6-digit code. No registration required.
+          </p>
+          <p className={`text-lg mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            InShareX - The fastest way to share files directly between devices using WebRTC technology.
           </p>
         </motion.div>
 

@@ -33,7 +33,7 @@ const P2M = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isSharing, setIsSharing] = useState(false);
   const [sharedTorrents, setSharedTorrents] = useState([]);
-  const [wsUrl] = useState('ws://localhost:4000');
+  const [wsUrl] = useState(import.meta.env.VITE_WEBSOCKET_URL);
   const fileInputRef = useRef(null);
   
   // WebTorrent clients

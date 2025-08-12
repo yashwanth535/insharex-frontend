@@ -3,6 +3,8 @@ import { Upload, Download, FileUp, Users, Send, RefreshCw, Copy, Check } from 'l
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import Chat from '../components/Chat';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 const wsurl = import.meta.env.VITE_WEBSOCKET_URL;
 const ws = new WebSocket(wsurl);
@@ -34,6 +36,7 @@ const FileShare = () => {
   const totalChunksRef = useRef(0);
   const receivedChunksCountRef = useRef(0);
   const sendingFileMetaRef = useRef(null);
+  const receiveStartTimeRef = useRef(null);
 
   // Constants
   const CHUNK_SIZE = 1024 * 256; // 256KB
@@ -111,7 +114,6 @@ const FileShare = () => {
   };
 
   // DataChannel events for file transfer
-  const receiveStartTimeRef = useRef(null);
   const setupDataChannelEvents = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -442,11 +444,21 @@ const FileShare = () => {
   };
 
   return (
-    <div className={`w-full p-8 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-      <div className="mb-8 text-center">
-        <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Insharex File Sharing</h2>
-        <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2`}>Transfer files directly to another device</p>
-      </div>
+    <>
+    <div className={`min-h-screen pt-20 ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black' : 'bg-gradient-to-br from-gray-50 via-gray-100 to-white'}`}>
+      <Header className=""/>
+      
+      <div className="mt-16 mb-8 text-center">
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+            P2P File Sharing via WebRTC
+          </h2>
+          <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2`}>
+            Encrypted & highly secure peer-to-peer file transfer
+          </p>
+        </div>
+
+
+      <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl w-3/5 mx-auto border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
       <AnimatePresence>
         {status && (
           <motion.div 
@@ -690,7 +702,10 @@ const FileShare = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
+    <Footer className="" />
+    </>
   );
 };
 

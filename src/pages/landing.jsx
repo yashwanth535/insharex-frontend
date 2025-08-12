@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
-import WebSocket from './webrtc';
 
 
 const Landing = () => {
@@ -29,9 +28,80 @@ const Landing = () => {
           </p>
         </motion.div>
 
-        <motion.div className="w-3/5 mx-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl overflow-hidden border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-            <WebSocket/>
+        <motion.div className="w-4/5 mx-auto">
+          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl overflow-hidden border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-8`}>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {/* One to One Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/p2p'}
+                className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                  isDark 
+                    ? 'bg-gray-700 border-blue-500 hover:bg-blue-600 hover:border-blue-400' 
+                    : 'bg-blue-50 border-blue-500 hover:bg-blue-500 hover:border-blue-600'
+                } group`}
+              >
+                <div className="text-center">
+                  <div className={`text-4xl mb-3 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                    👥
+                  </div>
+                  <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    One to One
+                  </h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Share files directly between two devices
+                  </p>
+                </div>
+              </motion.button>
+
+              {/* One to Many Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/p2m'}
+                className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                  isDark 
+                    ? 'bg-gray-700 border-green-500 hover:bg-green-600 hover:border-green-400' 
+                    : 'bg-green-50 border-green-500 hover:bg-green-500 hover:border-green-600'
+                } group`}
+              >
+                <div className="text-center">
+                  <div className={`text-4xl mb-3 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    🌐
+                  </div>
+                  <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    One to Many
+                  </h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Share files with multiple recipients
+                  </p>
+                </div>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/download'}
+                className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                  isDark 
+                    ? 'bg-gray-700 border-purple-500 hover:bg-purple-600 hover:border-purple-400' 
+                    : 'bg-purple-50 border-purple-500 hover:bg-purple-500 hover:border-purple-600'
+                } group`}
+              >
+                <div className="text-center">
+                  <div className={`text-4xl mb-3 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                    ⬇️
+                  </div>
+                  <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Torrent Downloader
+                  </h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Download files from magnet links using WebTorrent
+                  </p>
+                </div>
+              </motion.button>
+            </div>
           </div>
         </motion.div>
       </motion.main>

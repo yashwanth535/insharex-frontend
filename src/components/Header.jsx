@@ -3,7 +3,7 @@ import { Shield, Clock, Sun, Moon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 
-const Header = () => {
+const Header = ({className = ''}) => {
   const { isDark, toggleTheme } = useTheme()
 
   return (
@@ -13,9 +13,10 @@ const Header = () => {
       transition={{ duration: 0.5 }}
       className={`fixed w-full top-0 z-50 border-b ${
         isDark 
-          ? 'bg-gray-900/90 border-gray-800' 
+          ? 'bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-black/95 border-gray-800' 
           : 'bg-white/90 border-gray-200'
-      } backdrop-blur-md transition-colors duration-200`}
+      } backdrop-blur-md transition-colors duration-200
+      ${className}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">

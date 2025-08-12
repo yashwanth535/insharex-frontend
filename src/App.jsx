@@ -5,6 +5,9 @@ import SignUp from './pages/signup'
 import BackendCheck from './pages/ui/backendCheck'
 import { ThemeProvider } from './context/ThemeContext'
 import './App.css'
+import P2P from './pages/p2p'
+import P2M from './pages/p2m'
+import DownloadPage from './pages/download'
 
 function App() {
   return (
@@ -13,6 +16,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/backend" element={<BackendCheck />} />
+          <Route path = '/p2p' element={<P2P/>}/>
+          <Route path = '/p2m' element={<P2M/>} />
+          <Route path = '/download' element={<DownloadPage/>} />
         </Routes>
       </Router>
     </ThemeProvider>

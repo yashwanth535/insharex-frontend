@@ -82,7 +82,7 @@ const Landing = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.href = '/download'}
+                onClick={() => window.location.href = '/torrent'}
                 className={`p-6 rounded-xl border-2 transition-all duration-300 ${
                   isDark 
                     ? 'bg-gray-700 border-purple-500 hover:bg-purple-600 hover:border-purple-400' 

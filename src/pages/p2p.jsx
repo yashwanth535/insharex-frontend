@@ -445,27 +445,27 @@ const FileShare = () => {
 
   return (
     <>
-    <div className={`min-h-screen pt-20 ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black' : 'bg-gradient-to-br from-gray-50 via-gray-100 to-white'}`}>
+    <div className={`min-h-screen pt-20 pb-10 ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black' : 'bg-gradient-to-br from-gray-50 via-gray-100 to-white'}`}>
       <Header className=""/>
-      
-      <div className="mt-16 mb-8 text-center">
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+
+      <div className="mt-10 sm:mt-16 mb-6 sm:mb-8 text-center px-4">
+          <h2 className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
             P2P File Sharing via WebRTC
           </h2>
-          <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2`}>
+          <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mt-2 text-sm sm:text-base`}>
             Encrypted & highly secure peer-to-peer file transfer
           </p>
         </div>
 
 
-      <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl w-3/5 mx-auto border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl w-full sm:w-11/12 md:w-4/5 lg:w-3/5 mx-4 sm:mx-auto border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-4 sm:p-6`}>
       <AnimatePresence>
         {status && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className={`mb-6 p-4 rounded-xl text-sm ${
+            className={`mb-6 p-4 rounded-xl text-sm break-words ${
               status.includes('successfully') 
                 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
                 : status.includes('Error') 
@@ -480,19 +480,19 @@ const FileShare = () => {
       {!peerConnected && (
         <div className="space-y-6">
           <motion.div 
-            className={`p-6 ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'} rounded-xl shadow-sm border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
+            className={`p-4 sm:p-6 ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'} rounded-xl shadow-sm border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
             <div className="flex items-center space-x-3 mb-4">
-              <Users className="h-6 w-6 text-blue-500 dark:text-blue-400" />
-              <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create or Join Room</h3>
+              <Users className="h-6 w-6 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+              <h3 className={`text-lg sm:text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create or Join Room</h3>
             </div>
             <button 
               onClick={createRoom} 
-              className="w-full mb-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-4 px-6 rounded-xl transition duration-200 flex items-center justify-center space-x-2"
+              className="w-full mb-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 sm:py-4 px-6 rounded-xl transition duration-200 flex items-center justify-center space-x-2"
             >
-              <Users className="h-5 w-5" />
+              <Users className="h-5 w-5 flex-shrink-0" />
               <span>Create New Room</span>
             </button>
             {roomId && isRoomCreator && (
@@ -502,13 +502,13 @@ const FileShare = () => {
                 className={`mb-4 p-4 ${isDark ? 'bg-gray-700' : 'bg-white'} rounded-xl border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}
               >
                 <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-2 text-sm`}>Share this code with others:</p>
-                <div className="flex items-center space-x-3">
-                  <div className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="text-base sm:text-lg font-mono font-bold text-blue-600 dark:text-blue-400 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg break-all">
                     {roomId}
                   </div>
                   <button
                     onClick={copyRoomCode}
-                    className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
+                    className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 flex-shrink-0 ${
                       copiedRoomId
                         ? isDark 
                           ? 'bg-green-600 text-white' 
@@ -531,18 +531,18 @@ const FileShare = () => {
             {!isRoomCreator && (
               <div className="mt-4">
                 <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Join Existing Room</label>
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input 
                     type="text" 
                     placeholder="Enter Room Code" 
                     value={roomId} 
                     onChange={(e) => setRoomId(e.target.value)}
                     onKeyPress={handleRoomCodeKeyPress}
-                    className={`flex-1 border ${isDark ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    className={`flex-1 min-w-0 border ${isDark ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                   <button 
                     onClick={joinRoom} 
-                    className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl transition duration-200"
+                    className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl transition duration-200"
                   >
                     Join
                   </button>
@@ -556,10 +556,10 @@ const FileShare = () => {
         </div>
       )}
       {peerConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" style={{ minHeight: '400px', maxHeight: '450px' }}>
-          {/* File Transfer Section - Takes 60% of the space (3/5) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+          {/* File Transfer Section - Takes 60% of the space (3/5) on desktop, full width on mobile */}
           <div className="lg:col-span-3">
-            <div className={`h-full ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-6`}>
+            <div className={`${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} p-4 sm:p-6 min-h-[320px] lg:min-h-[400px] lg:max-h-[450px] lg:overflow-y-auto`}>
               {!isReceiver && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -567,17 +567,17 @@ const FileShare = () => {
                   className="h-full flex flex-col"
                 >
                   <div className="flex items-center space-x-3 mb-4">
-                    <Upload className="h-6 w-6 text-blue-500 dark:text-blue-400" />
-                    <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Send File</h3>
+                    <Upload className="h-6 w-6 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                    <h3 className={`text-lg sm:text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Send File</h3>
                   </div>
                   <div className="flex-1 flex flex-col">
                     <div 
                       onClick={() => fileInputRef.current.click()}
-                      className={`flex-1 border-2 border-dashed ${isDark ? 'border-blue-700' : 'border-blue-300'} rounded-xl p-6 cursor-pointer ${isDark ? 'hover:bg-blue-800/20' : 'hover:bg-blue-100'} transition duration-200 flex flex-col items-center justify-center`}
+                      className={`flex-1 border-2 border-dashed ${isDark ? 'border-blue-700' : 'border-blue-300'} rounded-xl p-4 sm:p-6 cursor-pointer ${isDark ? 'hover:bg-blue-800/20' : 'hover:bg-blue-100'} transition duration-200 flex flex-col items-center justify-center min-h-[140px] text-center`}
                     >
-                      <FileUp className="h-10 w-10 text-blue-400 dark:text-blue-500 mb-2" />
+                      <FileUp className="h-9 w-9 sm:h-10 sm:w-10 text-blue-400 dark:text-blue-500 mb-2" />
                       <p className="text-blue-600 dark:text-blue-400 font-medium">Select a file to share</p>
-                      <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>Click to browse your files</p>
+                      <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>Tap to browse your files</p>
                       <input 
                         ref={fileInputRef}
                         type="file" 
@@ -588,12 +588,12 @@ const FileShare = () => {
                     {file && (
                       <div className="mt-4 space-y-3">
                         <div className={`p-3 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{file.name}</p>
+                          <p className={`font-medium break-words ${isDark ? 'text-white' : 'text-gray-800'}`}>{file.name}</p>
                           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{formatFileSize(file.size)}</p>
                         </div>
                         {sendProgress > 0 && sendProgress < 100 && (
                           <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
+                            <div className="flex flex-wrap justify-between gap-x-3 text-sm">
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Sending...</span>
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{sendProgress}%</span>
                               {sendTimeLeft !== null && (
@@ -630,18 +630,18 @@ const FileShare = () => {
                   className="h-full flex flex-col"
                 >
                   <div className="flex items-center space-x-3 mb-4">
-                    <Download className="h-6 w-6 text-green-500 dark:text-green-400" />
-                    <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Receive File</h3>
+                    <Download className="h-6 w-6 text-green-500 dark:text-green-400 flex-shrink-0" />
+                    <h3 className={`text-lg sm:text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Receive File</h3>
                   </div>
                   <div className="flex-1 flex flex-col">
                     {!fileReady ? (
-                      <div className={`flex-1 border-2 border-dashed ${isDark ? 'border-green-700' : 'border-green-300'} rounded-xl p-6 flex flex-col items-center justify-center`}>
-                        <Download className="h-10 w-10 text-green-400 dark:text-green-500 mb-2" />
+                      <div className={`flex-1 border-2 border-dashed ${isDark ? 'border-green-700' : 'border-green-300'} rounded-xl p-4 sm:p-6 flex flex-col items-center justify-center min-h-[140px] text-center`}>
+                        <Download className="h-9 w-9 sm:h-10 sm:w-10 text-green-400 dark:text-green-500 mb-2" />
                         <p className="text-green-600 dark:text-green-400 font-medium">Waiting for file...</p>
                         <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`}>File will appear here when received</p>
                         {receiveProgress > 0 && receiveProgress < 100 && (
                           <div className="mt-4 w-full space-y-2">
-                            <div className="flex justify-between text-sm">
+                            <div className="flex flex-wrap justify-between gap-x-3 text-sm">
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Receiving...</span>
                               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{receiveProgress}%</span>
                               {receiveTimeLeft !== null && (
@@ -658,30 +658,25 @@ const FileShare = () => {
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className={`p-6 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} text-center`}>
+                        <div className={`w-full p-4 sm:p-6 ${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} text-center`}>
                           <FileUp className="h-12 w-12 text-green-500 dark:text-green-400 mx-auto mb-3" />
-                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>{receivingFileName}</p>
+                          <p className={`font-medium break-words ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>{receivingFileName}</p>
                           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-4`}>{formatFileSize(receivedFileSizeRef.current)}</p>
-                          <button 
-                            onClick={downloadReceivedFile}
-                            disabled={isDownloading}
-                            className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${
-                              isDownloading
-                                ? isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'
-                                : 'bg-green-500 hover:bg-green-600 text-white'
-                            }`}
-                          >
-                            {isDownloading ? (
-                              <button 
-                                disabled
-                                className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'}`}
-                              >
-                                {countdown > 0 ? `Processing... (${formatTime(countdown)})` : 'Processing...'}
-                              </button>
-                            ) : (
-                              'Download File'
-                            )}
-                          </button>
+                          {isDownloading ? (
+                            <button 
+                              disabled
+                              className={`w-full py-3 px-4 rounded-xl font-medium transition duration-200 ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-400'}`}
+                            >
+                              {countdown > 0 ? `Processing... (${formatTime(countdown)})` : 'Processing...'}
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={downloadReceivedFile}
+                              className="w-full py-3 px-4 rounded-xl font-medium transition duration-200 bg-green-500 hover:bg-green-600 text-white"
+                            >
+                              Download File
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -690,9 +685,9 @@ const FileShare = () => {
               )}
             </div>
           </div>
-          {/* Chat Section - Takes 40% of the space (2/5) */}
+          {/* Chat Section - Takes 40% of the space (2/5) on desktop, full width on mobile */}
           <div className="lg:col-span-2">
-            <div className={`h-full ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>
+            <div className={`${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden h-[380px] lg:h-full lg:min-h-[400px] lg:max-h-[450px]`}>
               <Chat 
                 roomId={roomId} 
                 wsRef={wsRef} 
